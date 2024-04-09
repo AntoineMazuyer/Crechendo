@@ -1,6 +1,0 @@
-[submodule "tpls/sqlite"]
-	path = tpls/sqlite
-	url = https://github.com/sqlite/sqlite.git
-[submodule "tpls/imgui"]
-	path = tpls/imgui
-	url = https://github.com/ocornut/imgui.git
