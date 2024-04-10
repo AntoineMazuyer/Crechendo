@@ -16,6 +16,10 @@
 #include <GLES2/gl2.h>
 #endif
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
+#include <sqlite3.h>
+
+#include <etablissement.h>
+#include <init.h>
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
 // To link with VS2010-era libraries, VS2015+ requires linking with legacy_stdio_definitions.lib, which we do using this pragma.
@@ -34,9 +38,24 @@ static void glfw_error_callback(int error, const char* description)
     fprintf(stderr, "GLFW Error %d: %s\n", error, description);
 }
 
+using namespace Crechendo;
 // Main code
 int main(int, char**)
 {
+    sqlite3 * db;
+    int rc;
+    rc = sqlite3_open("crechendo.db", &db);
+    if (rc) {
+        fprintf(stderr, "Impossible d'ouvrir la base de données : %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return 1;
+    }
+    rc = init(db);
+    if (rc != 0) {
+        fprintf(stderr, "Erreur lors de l'initialisation de la base de données.\n");
+        sqlite3_close(db);
+        return 1;
+    }
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
         return 1;
@@ -107,7 +126,7 @@ int main(int, char**)
     //IM_ASSERT(font != nullptr);
 
     // Our state
-    bool show_demo_window = true;
+    bool show_demo_window = false;
     bool show_another_window = false;
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -137,39 +156,46 @@ int main(int, char**)
         if (show_demo_window)
             ImGui::ShowDemoWindow(&show_demo_window);
 
-        // 2. Show a simple window that we create ourselves. We use a Begin/End pair to create a named window.
         {
-            static float f = 0.0f;
+            // Fenêtre gérant les établissements
             static int counter = 0;
 
-            ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+            ImGui::Begin("Établissements");
+            if (ImGui::Button("Nouvel établissement"))
+                ImGui::OpenPopup("Nouvel établissement");
+            if (ImGui::BeginPopupModal("Nouvel établissement", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+            {
+                ImGui::Text("Information");
+                static char nom[32] = ""; ImGui::InputText("Nom de l'établissement", nom, 32);
+                static char adresse1[32] = ""; ImGui::InputText("Adresse", adresse1, 32);
+                static char adresse2[32] = ""; ImGui::InputText("Complément d'adresse", adresse2, 32);
+                static char cp[32] = ""; ImGui::InputText("Code postal", cp, 32);
+                static char ville[32] = ""; ImGui::InputText("Ville", ville, 32);
+                ImGui::Separator();
 
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-            ImGui::Checkbox("Another Window", &show_another_window);
+                //static int unused_i = 0;
+                //ImGui::Combo("Combo", &unused_i, "Delete\0Delete harder\0");
 
-            ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-            ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+                static bool dont_ask_me_next_time = false;
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+                ImGui::Checkbox("Don't ask me next time", &dont_ask_me_next_time);
+                ImGui::PopStyleVar();
 
-            if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-                counter++;
-            ImGui::SameLine();
-            ImGui::Text("counter = %d", counter);
-
-            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+                if (ImGui::Button("OK", ImVec2(120, 0))) {
+                    creerEtablissement( nom, adresse1, adresse2, cp, ville,db);
+                        if (rc != 0) {
+                            fprintf(stderr, "Erreur lors de l'insertion de l'établissement.\n");
+                            sqlite3_close(db);
+                            return 1;
+                        }
+                    ImGui::CloseCurrentPopup(); }
+                ImGui::SetItemDefaultFocus();
+                ImGui::SameLine();
+                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
+                ImGui::EndPopup();
+            }
             ImGui::End();
         }
-
-        // 3. Show another simple window.
-        if (show_another_window)
-        {
-            ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-            ImGui::Text("Hello from another window!");
-            if (ImGui::Button("Close Me"))
-                show_another_window = false;
-            ImGui::End();
-        }
-
         // Rendering
         ImGui::Render();
         int display_w, display_h;
@@ -193,5 +219,6 @@ int main(int, char**)
     glfwDestroyWindow(window);
     glfwTerminate();
 
+    sqlite3_close(db);
     return 0;
 }
