@@ -22,18 +22,26 @@ namespace Crechendo {
                                     std::string const& cp,
                                     std::string const & ville);
 
-            std::vector<std::string> listeEtablissements() const;
+            void supprimerEtablissement( std::string const & nom);
+
+            std::vector<std::string> listeEtablissements();
 
         private:
             Etablissements() {}
             Etablissements(const Etablissements&) = delete;
             Etablissements& operator=(const Etablissements&) = delete;
+
+            std::vector<std::string> listeEtablissementsSQL();
         private:
             /// SQLite database
             sqlite3 * db_;
 
             /// Nom
             std::string name_ {"etablissements"};
+
+            bool to_update_ {true};
+            std::vector< std::string > listeEtablissements_;
+
     };
 
 };

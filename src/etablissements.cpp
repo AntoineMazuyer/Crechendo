@@ -9,7 +9,8 @@ namespace Crechendo {
         db_ = db;
         std::string sql = "CREATE TABLE IF NOT EXISTS " 
                           + name_ + 
-                          " (nom TEXT NOT NULL PRIMARY KEY,"
+                          "(id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                          "nom TEXT NOT NULL,"
                           "adresse1 TEXT NOT NULL,"
                           "adresse2 TEXT NOT NULL,"
                           "cp TEXT NOT NULL,"
@@ -23,6 +24,8 @@ namespace Crechendo {
             fprintf(stderr, "Erreur lors de l'initialisation de la table.\n");
             sqlite3_close(db);
         }
+
+        listeEtablissementsSQL();
     }
     void Etablissements::creerEtablissement(std::string const &nom,
                                             std::string const &adresse1,
@@ -55,6 +58,27 @@ namespace Crechendo {
     
        // Finalisation de la requête
        sqlite3_finalize(stmt);
+       to_update_ = true;
+    }
+
+    void Etablissements::supprimerEtablissement( std::string const & nom){
+        std::string sql = "DELETE FROM " + name_ + " WHERE nom = ?;";
+
+        sqlite3_stmt* stmt;
+        int rc = sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, NULL);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "Erreur lors de la préparation de la requête : %s\n", sqlite3_errmsg(db_));
+        }
+
+        sqlite3_bind_text(stmt, 1, nom.c_str(), -1, SQLITE_STATIC);
+
+        rc = sqlite3_step(stmt);
+        if (rc != SQLITE_DONE)
+        {
+            std::cerr << "Erreur lors de l'exécution de la requête : " << sqlite3_errmsg(db_) << std::endl;
+        }
+        sqlite3_finalize(stmt);
+        to_update_ = true;
     }
 
     int callback(void *data, int argc, char **argv, char **azColName)
@@ -71,15 +95,25 @@ namespace Crechendo {
 
         return 0;
     }
-    std::vector< std::string > Etablissements::listeEtablissements() const {
-        std::vector< std::string > liste;
+    std::vector< std::string > Etablissements::listeEtablissements() {
+        if( to_update_ ) {
+            return listeEtablissementsSQL();
+        }
+        else {
+            return listeEtablissements_;
+        }
+    }
+    std::vector<std::string> Etablissements::listeEtablissementsSQL()
+    {
         std::string sql = "SELECT nom FROM " + name_ + ";";
         std::cout << sql << std::endl;
-        int rc = sqlite3_exec(db_, sql.c_str(), callback, &liste, nullptr);
+        listeEtablissements_.clear();
+        int rc = sqlite3_exec(db_, sql.c_str(), callback, &listeEtablissements_, nullptr);
         if (rc != SQLITE_OK)
         {
             std::cerr << "Erreur lors de la récupération des clés primaires : " << sqlite3_errmsg(db_) << std::endl;
         }
-        return liste;
+        to_update_ = false;
+        return listeEtablissements_;
     }
 };

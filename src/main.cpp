@@ -9,7 +9,7 @@
 #include <GLFW/glfw3.h> // Will drag system OpenGL headers
 #include <sqlite3.h>
 
-#include <etablissements.h>
+#include <fenetre_etablissements.h>
 #include <init.h>
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to maximize ease of testing and compatibility with old VS compilers.
@@ -44,9 +44,8 @@ int main(int, char**)
         return 1;
     }
 
-    Etablissements & etablissements = Etablissements::getInstance();
-    std::vector< std::string > listeEtablissements = etablissements.listeEtablissements();
     GLFWwindow * window = initGui();
+
     // Main loop
 #ifdef __EMSCRIPTEN__
     // For an Emscripten build we are disabling file-system access, so let's not attempt to do a fopen() of the imgui.ini file.
@@ -69,47 +68,8 @@ int main(int, char**)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        fenetreEtablissements();
         
-        {
-            // Fenêtre gérant les établissements
-            static int counter = 0;
-
-            ImGui::Begin("Établissements");
-
-            for( std::string const etablissement : listeEtablissements ) {
-                ImGui::Button(etablissement.c_str(), ImVec2(120, 0));
-            }
-            if (ImGui::Button("Nouvel établissement"))
-                ImGui::OpenPopup("Nouvel établissement");
-            if (ImGui::BeginPopupModal("Nouvel établissement", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-            {
-                ImGui::Text("Information");
-                static char nom[32] = ""; ImGui::InputText("Nom de l'établissement", nom, 32);
-                static char adresse1[32] = ""; ImGui::InputText("Adresse", adresse1, 32);
-                static char adresse2[32] = ""; ImGui::InputText("Complément d'adresse", adresse2, 32);
-                static char cp[32] = ""; ImGui::InputText("Code postal", cp, 32);
-                static char ville[32] = ""; ImGui::InputText("Ville", ville, 32);
-                ImGui::Separator();
-
-                //static int unused_i = 0;
-                //ImGui::Combo("Combo", &unused_i, "Delete\0Delete harder\0");
-
-                static bool dont_ask_me_next_time = false;
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-                ImGui::Checkbox("Don't ask me next time", &dont_ask_me_next_time);
-                ImGui::PopStyleVar();
-
-                if (ImGui::Button("OK", ImVec2(120, 0))) {
-                    etablissements.creerEtablissement( nom, adresse1, adresse2, cp, ville);
-                    listeEtablissements = etablissements.listeEtablissements();
-                    ImGui::CloseCurrentPopup(); }
-                ImGui::SetItemDefaultFocus();
-                ImGui::SameLine();
-                if (ImGui::Button("Cancel", ImVec2(120, 0))) { ImGui::CloseCurrentPopup(); }
-                ImGui::EndPopup();
-            }
-            ImGui::End();
-        }
         // Rendering
         ImGui::Render();
         int display_w, display_h;
